@@ -1,0 +1,15 @@
+import './build.mjs';
+import {build} from 'esbuild';
+import express from 'express';
+import http from 'node:http';
+import {ExpressPeerServer} from 'peer';
+import {runtimeConfig} from './config.mjs';
+await build({entryPoints:['tests/browser.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/test-runner.js'});
+const app=express(),server=http.createServer(app);
+app.use('/signal',ExpressPeerServer(server,{path:'/',allow_discovery:false,proxied:true}));
+app.get('/runtime-config.json',(_req,res)=>res.json(runtimeConfig()));
+app.get('/__layout',(_req,res)=>res.sendFile(process.cwd()+'/tests/layout.html'));
+app.get('/__tests',(_req,res)=>res.sendFile(process.cwd()+'/tests/browser.html'));
+app.use(express.static('dist',{setHeaders:res=>res.setHeader('Referrer-Policy','no-referrer')}));
+const args=process.argv.slice(2),port=Number(args[args.indexOf('--port')+1])||Number(process.env.PORT)||3000;
+server.listen(port,'127.0.0.1',()=>console.log('S&D development server ready'));
